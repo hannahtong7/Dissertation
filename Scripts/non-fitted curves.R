@@ -47,8 +47,8 @@ make_genotype_plot <- function(gen) {
     geom_point(size = 2) +
     scale_color_manual(values = temp_colors, name = "Temperature (°C)") +
     labs(
-      title = paste("CO₂–Growth Response,", gen),
-      x = expression(paste("pCO"[2], " (µatm)")),
+      title = paste("CO2–Growth Response,", gen),
+      x = expression(paste("pCO2", " (µatm)")),
       y = expression(paste("Growth rate (d"^{-1}, ")"))
     ) +
     theme_minimal(base_size = 14)
@@ -73,8 +73,8 @@ p_by_temp <- ggplot(df_clean,
              labeller = labeller(temp = function(t) paste0(t, " °C"))) +
   scale_color_brewer(palette = "Dark2", name = "Genotype") +
   labs(
-    title = "CO₂–Growth Response by Genotype at Each Temperature",
-    x = expression(paste("pCO"[2], " (µatm)")),
+    title = "CO2–Growth Response by Genotype at Each Temperature",
+    x = expression(paste("pCO2", " (µatm)")),
     y = expression(paste("Growth rate (d"^{-1}, ")"))
   ) +
   theme_minimal(base_size = 14)
@@ -106,8 +106,8 @@ p_facet_grid <- ggplot(df_clean,
     expand = expansion(mult = c(0.05, 0.05))
   ) +
   labs(
-    title = "Growth Rate Responses to CO₂ Across Temperatures and Genotypes",
-    x = expression(paste("pCO"[2], " (µatm)")),
+    title = "Growth Rate Responses to CO2 Across Temperatures and Genotypes",
+    x = expression(paste("pCO2", " (µatm)")),
     y = expression(paste("Growth rate (d"^{-1}, ")"))
   ) +
   theme_classic(base_size = 14) +
