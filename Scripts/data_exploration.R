@@ -600,3 +600,38 @@ plot(p1_prep, points = TRUE,
   theme_bw(base_size = 15) + 
   theme(panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank())
+
+target_temp <-30
+p1_prep <- conditional_effects(fit26, resolution = 100, 
+                               spaghetti = TRUE, ndraws = 100)
+plot(p1_prep, points = TRUE,
+     point_args = c(size = 3, alpha = 0.7), 
+     line_args = c(colour = 'black'))[[1]] +
+  xlab('CO2 (ppm)') +
+  ylab('Growth rate (per day)') +
+  ggtitle(paste("Temp =", target_temp, "°C")) +
+  theme_bw(base_size = 15) + 
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank())
+
+
+target_temp <-33
+p1_prep <- conditional_effects(fit26, resolution = 100, 
+                               spaghetti = TRUE, ndraws = 100)
+plot(p1_prep, points = TRUE,
+     point_args = c(size = 3, alpha = 0.7), 
+     line_args = c(colour = 'black'))[[1]] +
+  xlab('CO2 (ppm)') +
+  ylab('Growth rate (per day)') +
+  ggtitle(paste("Temp =", target_temp, "°C")) +
+  theme_bw(base_size = 15) + 
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank())
+
+
+
+
+
+
+
+

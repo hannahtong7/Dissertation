@@ -84,3 +84,23 @@ combined_plot <- p_raw / p_smooth + plot_layout(heights = c(1, 1.05))
 print(combined_plot)
 
 
+#########Alternative plots#########
+df %>%
+  group_by(genotype, temp) %>%
+  summarise(mean_chla = mean(chl_a_per_cell_pg, na.rm = TRUE)) %>%
+  ggplot(aes(x = temp, y = mean_chla, fill = temp)) +
+  geom_col() +
+  facet_wrap(~ genotype) +
+  scale_fill_manual(values = temp_colors) +
+  labs(
+    title = "Mean Chlorophyll-a per Cell by Temperature",
+    x = "Temperature (°C)",
+    y = "Mean Chlorophyll-a per cell (pg)"
+  ) +
+  theme_minimal(base_size = 14)
+
+
+
+
+
+
