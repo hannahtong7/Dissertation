@@ -1,5 +1,13 @@
+###############################################################################
+#Bayesian Eilers–Peeters growth model in brms
+#Fits genotype-specific CO2–growth curves at multiple temperatures
+#Produces diagnostics, posterior summaries, and plots
+# Notes:
+#CO2 is treated in µatm.
+#Priors are specified (non-linear parameters mumax, alpha, CO2opt).
+###############################################################################
+
 # ── Load Libraries ─────────────────────────────────────────────────────────────
-install.packages("brms")
 library(dplyr)
 library(brms)
 library(ggplot2)
@@ -8,7 +16,7 @@ library(posterior)
 library(tibble)
 
 #1. PARAMETERS ──────────────────────────────────────────────────────────────
-gen_to_run <- "CCMP2929"   #e.g. "CCMP1587" or "CCMP2929"
+gen_to_run <- "CCMP1587"   #e.g. "CCMP1587" or "CCMP2929"
 
 #2. LOAD & FILTER DATA ──────────────────────────────────────────────────────
 #This loads the full dataset then filters for only the chosen genotype
@@ -133,7 +141,7 @@ for (T in temps_to_run) {
             line_args  = list(colour = "black")
   )[[1]] +
     labs(
-      x     = "CO₂ (ppm)",
+      x     = "pCO₂ (μatm)",
       y     = "Growth rate (d⁻¹)",
       title = paste0("Genotype ", gen_to_run, " @ ", T, " °C")
     ) +
@@ -145,12 +153,12 @@ for (T in temps_to_run) {
 
 # ── 5b. COMBINED CURVE PLOT ACROSS TEMPERATURES ───────────────────────────────
 
-library(tidyverse)  # in case not already loaded
+library(tidyverse)  
 
-# Common CO₂ range for prediction
+#Common CO₂ range for prediction
 CO2_seq <- seq(min(dat$CO2), max(dat$CO2), length.out = 200)
 
-# Use posterior medians to generate fitted curves
+#Use posterior medians to generate fitted curves
 curve_data <- map_dfr(temps_to_run, function(T) {
   fit <- fits[[paste0("fit_", T)]]
   
@@ -166,11 +174,11 @@ curve_data <- map_dfr(temps_to_run, function(T) {
   )
 })
 
-# Raw data points for visual overlay
+#Raw data points for visual overlay
 dat_points <- dat %>%
   mutate(temperature = factor(temperature))
 
-# Final combined plot
+#Final combined plot
 ggplot() +
   geom_line(data = curve_data, aes(x = CO2, y = growth, color = factor(temperature)), linewidth = 1.2) +
   geom_point(data = dat_points, aes(x = CO2, y = growth_rate, color = factor(temperature)), size = 2, alpha = 0.7) +
@@ -201,21 +209,21 @@ all_posts <- bind_rows(
 lapply(fits, summary)
 
 
-# μₘₐₓ
+#μₘₐₓ
 ggplot(all_posts, aes(factor(temperature), mumax)) +
   geom_violin(fill = "lightblue", alpha = 0.6) +
   stat_summary(fun = median, geom = "point", size = 2, color = "red") +
   theme_minimal() +
   labs(x = "Temperature (°C)", y = expression(mu[max]))
 
-# CO₂ₒₚₜ
+#CO₂ₒₚₜ
 ggplot(all_posts, aes(factor(temperature), CO2opt)) +
   geom_violin(fill = "lightgreen", alpha = 0.6) +
   stat_summary(fun = median, geom = "point", size = 2, color = "red") +
   theme_minimal() +
   labs(x = "Temperature (°C)", y = expression(CO[2]~"opt (ppm)"))
 
-# α extraction (unit: μmol⁻¹)
+#α extraction (unit: μmol⁻¹)
 all_posts <- bind_rows(
   lapply(names(fits), function(nm) {
     T   <- as.numeric(sub("fit_", "", nm))
@@ -264,28 +272,28 @@ all_posts <- bind_rows(
   }),
   .id = "which"
 )
-# Extract posterior draws for each temperature
+#Extract posterior draws for each temperature
 co2opt_draws <- all_posts %>%
   group_by(temperature) %>%
   summarise(draws = list(CO2opt)) %>%
   arrange(temperature)  # Ensure ordered: 26, 30, 35
 
-# Assign to named variables for clarity
+#Assign to named variables for clarity
 draws_26 <- co2opt_draws$draws[[1]]
 draws_30 <- co2opt_draws$draws[[2]]
 draws_35 <- co2opt_draws$draws[[3]]
 
-# Calculate pairwise probabilities
+#Calculate pairwise probabilities
 prob_30_gt_26 <- mean(draws_30 > draws_26)
 prob_35_gt_30 <- mean(draws_35 > draws_30)
 prob_35_gt_26 <- mean(draws_35 > draws_26)
 
-# Print results
+#Print results
 prob_30_gt_26
 prob_35_gt_30
 prob_35_gt_26
 
-# Extract μmax and alpha posterior draws
+#Extract μmax and alpha posterior draws
 all_posts_other_params <- bind_rows(
   lapply(names(fits), function(nm) {
     T <- as.numeric(sub("fit_", "", nm))
@@ -300,7 +308,7 @@ all_posts_other_params <- bind_rows(
   .id = "which"
 )
 
-# μmax posterior comparison
+#μmax posterior comparison
 mumax_draws <- all_posts_other_params %>%
   group_by(temperature) %>%
   summarise(draws = list(mumax)) %>%
@@ -314,7 +322,7 @@ prob_mumax_30_gt_26 <- mean(draws_mumax_30 > draws_mumax_26)
 prob_mumax_35_gt_30 <- mean(draws_mumax_35 > draws_mumax_30)
 prob_mumax_35_gt_26 <- mean(draws_mumax_35 > draws_mumax_26)
 
-# alpha posterior comparison
+#alpha posterior comparison
 alpha_draws <- all_posts_other_params %>%
   group_by(temperature) %>%
   summarise(draws = list(alpha)) %>%
@@ -328,7 +336,7 @@ prob_alpha_30_gt_26 <- mean(draws_alpha_30 > draws_alpha_26)
 prob_alpha_35_gt_30 <- mean(draws_alpha_35 > draws_alpha_30)
 prob_alpha_35_gt_26 <- mean(draws_alpha_35 > draws_alpha_26)
 
-# Print results
+#Print results
 list(
   mumax = c(
     "P(30°C > 26°C)" = prob_mumax_30_gt_26,
@@ -343,7 +351,7 @@ list(
 )
 
 
-# Function to summarise posterior difference with CI
+#Function to summarise posterior difference with CI
 summarise_effect_size <- function(high, low) {
   diff <- high - low
   median <- median(diff)
@@ -351,7 +359,7 @@ summarise_effect_size <- function(high, low) {
   paste0(round(median, 2), " [", round(ci[1], 2), ", ", round(ci[2], 2), "]")
 }
 
-# EFFECT SIZE TABLE: μmax
+#EFFECT SIZE TABLE: μmax
 mumax_effects <- tibble(
   Parameter = "μmax",
   Comparison = c("30°C - 26°C", "35°C - 30°C", "35°C - 26°C"),
@@ -362,7 +370,7 @@ mumax_effects <- tibble(
   )
 )
 
-# EFFECT SIZE TABLE: CO2opt
+#EFFECT SIZE TABLE: CO2opt
 co2opt_effects <- tibble(
   Parameter = "CO₂opt (ppm)",
   Comparison = c("30°C - 26°C", "35°C - 30°C", "35°C - 26°C"),
@@ -373,7 +381,7 @@ co2opt_effects <- tibble(
   )
 )
 
-# EFFECT SIZE TABLE: α
+#EFFECT SIZE TABLE: α
 alpha_effects <- tibble(
   Parameter = "α",
   Comparison = c("30°C - 26°C", "35°C - 30°C", "35°C - 26°C"),
@@ -384,7 +392,7 @@ alpha_effects <- tibble(
   )
 )
 
-# Combine into one table
+#Combine into one table
 effect_size_table <- bind_rows(mumax_effects, co2opt_effects, alpha_effects)
 
 print(effect_size_table)
@@ -398,7 +406,7 @@ print(effect_size_table)
 curve_data_ribbon <- map_dfr(temps_to_run, function(T) {
   fit <- fits[[paste0("fit_", T)]]
   
-  # Extract conditional effects for CO2
+  #Extract conditional effects for CO2
   ce <- conditional_effects(fit, effects = "CO2", resolution = 100)[["CO2"]]
   
   ce %>%
@@ -413,10 +421,10 @@ curve_data_ribbon <- map_dfr(temps_to_run, function(T) {
       upper = upper__
     )
 })
-# Ensure raw data is properly formatted
+#Ensure raw data is properly formatted
 dat_points <- dat %>%
   mutate(temperature = factor(temperature, levels = c(26, 30, 35)))
-# Assign temperature as factor for legend ordering
+#Assign temperature as factor for legend ordering
 curve_data_ribbon <- curve_data_ribbon %>%
   mutate(temperature = factor(temperature, levels = c(26, 30, 35)))
 
@@ -431,39 +439,39 @@ temp_colors <- c(
 )
 
 ggplot() +
-  # 95% credible interval ribbons
+  #95% credible interval ribbons
   geom_ribbon(
     data = curve_data_ribbon,
     aes(x = CO2, ymin = lower, ymax = upper, fill = temperature, group = temperature),
     alpha = 0.2
   ) +
   
-  # Posterior median lines
+  #Posterior median lines
   geom_line(
     data = curve_data_ribbon,
     aes(x = CO2, y = fit, color = temperature, group = temperature),
     linewidth = 1.1
   ) +
   
-  # Raw data points
+  #Raw data points
   geom_point(
     data = dat_points,
     aes(x = CO2, y = growth_rate, color = temperature),
     size = 2, alpha = 0.75
   ) +
   
-  # Manual color and fill scales
+  #Manual color and fill scales
   scale_color_manual(values = temp_colors, name = "Temperature (°C)") +
   scale_fill_manual(values = temp_colors, name = "Temperature (°C)") +
   
-  # Axis and title labels
+  #Axis and title labels
   labs(
     title = paste("", gen_to_run),
     x = expression("pCO₂ ("*mu*"atm)"),
     y = expression("Specific growth rate ("*mu*", d"^{-1}*")")
   ) +
   
-  # Nature-style theme with gridlines and refined font
+  #Nature-style theme with gridlines and refined font
   theme_minimal(base_size = 12, base_family = "Helvetica") +
   theme(
     panel.background = element_rect(fill = "white", color = NA),
@@ -485,26 +493,26 @@ write.csv(dat_points, paste0("dat_points_", gen_to_run, ".csv"), row.names = FAL
 
 
 ####Do not run until all genotypes run
-# Load both genotypes
+#Load both genotypes
 curve_1587 <- read.csv("curve_data_CCMP1587.csv")
 curve_2929 <- read.csv("curve_data_CCMP2929.csv")
 data_1587  <- read.csv("dat_points_CCMP1587.csv")
 data_2929  <- read.csv("dat_points_CCMP2929.csv")
 
-# Combine into one dataframe
+#Combine into one dataframe
 curve_all <- bind_rows(curve_1587, curve_2929)
 data_all  <- bind_rows(data_1587, data_2929)
-# Ensure temperature is a factor for plotting
+#Ensure temperature is a factor for plotting
 curve_all <- curve_all %>%
   mutate(temperature = factor(temperature, levels = c(26, 30, 35)))
 
 data_all <- data_all %>%
   mutate(temperature = factor(temperature, levels = c(26, 30, 35)))
 
-# Custom colors
+#Custom colors
 temp_colors <- c("26" = "#4477AA", "30" = "#66CCAA", "35" = "#CC6677")
 
-# Final combined plot with facets
+#Final combined plot with facets
 ggplot() +
   geom_ribbon(data = curve_all, aes(x = CO2, ymin = lower, ymax = upper,
                                     fill = temperature, group = interaction(temperature, genotype)),
@@ -536,7 +544,7 @@ ggplot() +
 
 ###For violin plots 
 
-# AFTER FITTING CCMP2929
+#AFTER FITTING CCMP2929
 posteriors_2929 <- bind_rows(
   lapply(names(fits), function(nm) {
     T <- as.numeric(sub("fit_", "", nm))
@@ -676,13 +684,13 @@ ggplot(posterior_all, aes(x = factor(temperature), y = alpha, fill = genotype)) 
 library(ggplot2)
 library(cowplot)
 
-# Reusable colour scale
+#Reusable colour scale
 custom_fill <- scale_fill_manual(
   values = c("CCMP1587" = "#A6CEE3", "CCMP2929" = "#FB9A99"),
   name = "Genotype"
 )
 
-# Shared theme without legend
+#Shared theme without legend
 theme_no_legend <- theme_minimal(base_size = 13) +
   theme(
     panel.grid.major.x = element_blank(),
@@ -695,7 +703,7 @@ theme_no_legend <- theme_minimal(base_size = 13) +
     legend.position = "none"
   )
 
-# Shared theme with legend (for middle plot only)
+#Shared theme with legend (for middle plot only)
 theme_with_legend <- theme_no_legend +
   theme(
     legend.position = "right",
@@ -703,7 +711,7 @@ theme_with_legend <- theme_no_legend +
     legend.text = element_text(size = 10)
   )
 
-# μmax panel (top)
+#μmax panel (top)
 p1 <- ggplot(posterior_all, aes(x = factor(temperature), y = mumax, fill = genotype)) +
   geom_violin(position = position_dodge(width = 0.5), width = 0.9, alpha = 0.6, color = "black") +
   stat_summary(aes(group = genotype), fun = median, geom = "point", size = 2.5, color = "red",
@@ -713,7 +721,7 @@ p1 <- ggplot(posterior_all, aes(x = factor(temperature), y = mumax, fill = genot
   theme_no_legend +
   theme(axis.text.x = element_blank(), axis.title.x = element_blank(), axis.ticks.x = element_blank())
 
-# CO2opt panel (middle, with legend)
+#CO2opt panel (middle, with legend)
 p2 <- ggplot(posterior_all, aes(x = factor(temperature), y = CO2opt, fill = genotype)) +
   geom_violin(position = position_dodge(width = 0.5), width = 0.9, alpha = 0.6, color = "black") +
   stat_summary(aes(group = genotype), fun = median, geom = "point", size = 2.5, color = "red",
@@ -723,7 +731,7 @@ p2 <- ggplot(posterior_all, aes(x = factor(temperature), y = CO2opt, fill = geno
   theme_with_legend +
   theme(axis.text.x = element_blank(), axis.title.x = element_blank(), axis.ticks.x = element_blank())
 
-# alpha panel (bottom, with x-axis)
+#alpha panel (bottom, with x-axis)
 p3 <- ggplot(posterior_all, aes(x = factor(temperature), y = alpha, fill = genotype)) +
   geom_violin(position = position_dodge(width = 0.5), width = 0.9, alpha = 0.6, color = "black") +
   stat_summary(aes(group = genotype), fun = median, geom = "point", size = 2.5, color = "red",
@@ -732,12 +740,9 @@ p3 <- ggplot(posterior_all, aes(x = factor(temperature), y = alpha, fill = genot
   labs(x = "Temperature (°C)", y = expression(alpha)) +
   theme_no_legend
 
-# Combine and print
+#Combine and print
 combined_plot <- plot_grid(p1, p2, p3, ncol = 1, align = "v", labels = c("a", "b", "c"), label_size = 14)
 print(combined_plot)
-
-# Optional: save to file
-# ggsave("combined_violin_plots.png", combined_plot, width = 6.5, height = 10, dpi = 300)
 
 
 
@@ -769,4 +774,74 @@ df_CO2opt  <- summarise_genotype_difference("CO2opt")
 df_alpha   <- summarise_genotype_difference("alpha")
 effect_diffs <- bind_rows(df_mumax, df_CO2opt, df_alpha)
 print(effect_diffs)
+
+
+#Bayesian fit plots
+library(cowplot)
+library(ggplot2)
+
+temp_colors <- c("26" = "#4477AA", "30" = "#66CCAA", "35" = "#CC6677")
+
+plots <- list()
+
+for (T in temps_to_run) {
+  fit <- fits[[paste0("fit_", T)]]
+  
+  ce <- conditional_effects(
+    fit,
+    effects   = "CO2",
+    resolution= 100,
+    spaghetti = TRUE,
+    ndraws    = 100
+  )
+  
+  p <- plot(
+    ce,
+    points     = TRUE,
+    point_args = list(size = 3, alpha = 1, colour = temp_colors[as.character(T)]),
+    line_args  = list(size = 1, alpha = 1, colour = temp_colors[as.character(T)]) 
+  )[[1]] +
+    labs(
+      x     = expression(pCO[2]~"(μatm)"),
+      y     = expression("Growth rate ("*mu*","~d^{-1}*")"),
+      colour = "Temperature (°C)"
+    ) +
+    theme_bw(base_size = 15) +
+    theme(panel.grid = element_blank())
+  
+  plots[[as.character(T)]] <- p
+}
+
+#Combine plots into one row
+combined_plot <- plot_grid(plotlist = plots, ncol = 3)
+
+#Create dummy legend for temperature
+legend_df <- data.frame(
+  Temperature = factor(c(26, 30, 35)),
+  x = 1, y = 1
+)
+
+legend_plot <- ggplot(legend_df, aes(x, y, colour = Temperature)) +
+  geom_point(size = 4) +
+  scale_colour_manual(values = temp_colors) +
+  guides(colour = guide_legend(title = "Temperature (°C)")) +
+  theme_void() +
+  theme(legend.position = "right")
+
+#Extract legend
+legend <- get_legend(legend_plot)
+
+#Add the label ("A") to the combined plot row
+combined_with_label <- plot_grid(
+  combined_plot, legend, rel_widths = c(3, 0.5)
+)
+final_panel <- plot_grid(
+  combined_with_label,
+  labels = "A", label_size = 18, label_fontface = "bold"
+)
+
+print(final_panel)
+
+
+
 
