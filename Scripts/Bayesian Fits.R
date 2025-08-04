@@ -557,3 +557,216 @@ post_2929 <- read.csv("posterior_draws_2929.csv")
 posterior_all <- bind_rows(post_1587, post_2929)
 library(tidyverse)
 
+###Growth rate 
+ggplot(posterior_all, aes(x = factor(temperature), y = mumax, fill = genotype)) +
+  geom_violin(
+    position = position_dodge(width = 0.5),
+    width = 0.9,
+    alpha = 0.6,
+    color = "black"
+  ) +
+  stat_summary(
+    aes(group = genotype),
+    fun = median,
+    geom = "point",
+    size = 2.5,
+    color = "red",
+    position = position_dodge(width = 0.5)
+  ) +
+  scale_fill_manual(
+    values = c("CCMP1587" = "#A6CEE3", "CCMP2929" = "#FB9A99")
+  ) +
+  labs(
+    x = "Temperature (°C)",
+    y = expression(mu[max]),
+    fill = "Genotype"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.grid.major.x = element_blank(),  # ❌ remove vertical gridlines
+    panel.grid.minor.x = element_blank(),  # ❌ remove vertical minor gridlines
+    panel.grid.major.y = element_line(color = "grey85", linewidth = 0.3),
+    axis.line = element_line(color = "black", linewidth = 0.4),
+    axis.ticks = element_line(color = "black"),
+    axis.text = element_text(size = 11, color = "black"),
+    axis.title = element_text(size = 12),
+    legend.position = "right",
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text = element_text(size = 10)
+  )
+
+###Co2 opt 
+ggplot(posterior_all, aes(x = factor(temperature), y = CO2opt, fill = genotype)) +
+  geom_violin(
+    position = position_dodge(width = 0.5),
+    width = 0.9,
+    alpha = 0.6,
+    color = "black"
+  ) +
+  stat_summary(
+    aes(group = genotype),
+    fun = median,
+    geom = "point",
+    size = 2.5,
+    color = "red",
+    position = position_dodge(width = 0.5)
+  ) +
+  scale_fill_manual(
+    values = c("CCMP1587" = "#A6CEE3", "CCMP2929" = "#FB9A99")
+  ) +
+  labs(
+    x = "Temperature (°C)",
+    y = expression(CO[2]*"opt (ppm)"),
+    fill = "Genotype"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.grid.major.x = element_blank(),  # ❌ remove vertical gridlines
+    panel.grid.minor.x = element_blank(),  # ❌ remove vertical minor gridlines
+    panel.grid.major.y = element_line(color = "grey85", linewidth = 0.3),
+    axis.line = element_line(color = "black", linewidth = 0.4),
+    axis.ticks = element_line(color = "black"),
+    axis.text = element_text(size = 11, color = "black"),
+    axis.title = element_text(size = 12),
+    legend.position = "right",
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text = element_text(size = 10)
+  )
+
+###Alpha
+ggplot(posterior_all, aes(x = factor(temperature), y = alpha, fill = genotype)) +
+  geom_violin(
+    position = position_dodge(width = 0.5),
+    width = 0.9,
+    alpha = 0.6,
+    color = "black"
+  ) +
+  stat_summary(
+    aes(group = genotype),
+    fun = median,
+    geom = "point",
+    size = 2.5,
+    color = "red",
+    position = position_dodge(width = 0.5)
+  ) +
+  scale_fill_manual(
+    values = c("CCMP1587" = "#A6CEE3", "CCMP2929" = "#FB9A99")
+  ) +
+  labs(
+    x = "Temperature (°C)",
+    y = expression(alpha),
+    fill = "Genotype"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.grid.major.x = element_blank(),  # ❌ remove vertical gridlines
+    panel.grid.minor.x = element_blank(),  # ❌ remove vertical minor gridlines
+    panel.grid.major.y = element_line(color = "grey85", linewidth = 0.3),
+    axis.line = element_line(color = "black", linewidth = 0.4),
+    axis.ticks = element_line(color = "black"),
+    axis.text = element_text(size = 11, color = "black"),
+    axis.title = element_text(size = 12),
+    legend.position = "right",
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text = element_text(size = 10)
+  )
+
+
+###Combined plot 
+library(ggplot2)
+library(cowplot)
+
+# Reusable colour scale
+custom_fill <- scale_fill_manual(
+  values = c("CCMP1587" = "#A6CEE3", "CCMP2929" = "#FB9A99"),
+  name = "Genotype"
+)
+
+# Shared theme without legend
+theme_no_legend <- theme_minimal(base_size = 13) +
+  theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.y = element_line(color = "grey85", linewidth = 0.3),
+    axis.line = element_line(color = "black", linewidth = 0.4),
+    axis.ticks = element_line(color = "black"),
+    axis.text = element_text(size = 11, color = "black"),
+    axis.title = element_text(size = 12),
+    legend.position = "none"
+  )
+
+# Shared theme with legend (for middle plot only)
+theme_with_legend <- theme_no_legend +
+  theme(
+    legend.position = "right",
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text = element_text(size = 10)
+  )
+
+# μmax panel (top)
+p1 <- ggplot(posterior_all, aes(x = factor(temperature), y = mumax, fill = genotype)) +
+  geom_violin(position = position_dodge(width = 0.5), width = 0.9, alpha = 0.6, color = "black") +
+  stat_summary(aes(group = genotype), fun = median, geom = "point", size = 2.5, color = "red",
+               position = position_dodge(width = 0.5)) +
+  custom_fill +
+  labs(x = NULL, y = expression(mu[max])) +
+  theme_no_legend +
+  theme(axis.text.x = element_blank(), axis.title.x = element_blank(), axis.ticks.x = element_blank())
+
+# CO2opt panel (middle, with legend)
+p2 <- ggplot(posterior_all, aes(x = factor(temperature), y = CO2opt, fill = genotype)) +
+  geom_violin(position = position_dodge(width = 0.5), width = 0.9, alpha = 0.6, color = "black") +
+  stat_summary(aes(group = genotype), fun = median, geom = "point", size = 2.5, color = "red",
+               position = position_dodge(width = 0.5)) +
+  custom_fill +
+  labs(x = NULL, y = expression(pCO[2]*"opt (μatm)")) +
+  theme_with_legend +
+  theme(axis.text.x = element_blank(), axis.title.x = element_blank(), axis.ticks.x = element_blank())
+
+# alpha panel (bottom, with x-axis)
+p3 <- ggplot(posterior_all, aes(x = factor(temperature), y = alpha, fill = genotype)) +
+  geom_violin(position = position_dodge(width = 0.5), width = 0.9, alpha = 0.6, color = "black") +
+  stat_summary(aes(group = genotype), fun = median, geom = "point", size = 2.5, color = "red",
+               position = position_dodge(width = 0.5)) +
+  custom_fill +
+  labs(x = "Temperature (°C)", y = expression(alpha)) +
+  theme_no_legend
+
+# Combine and print
+combined_plot <- plot_grid(p1, p2, p3, ncol = 1, align = "v", labels = c("a", "b", "c"), label_size = 14)
+print(combined_plot)
+
+# Optional: save to file
+# ggsave("combined_violin_plots.png", combined_plot, width = 6.5, height = 10, dpi = 300)
+
+
+
+###Comparison of genotypes
+summarise_genotype_difference <- function(param_name) {
+  map_dfr(c(26, 30, 35), function(temp) {
+    draws_1587 <- posterior_all %>%
+      filter(genotype == "CCMP1587", temperature == temp) %>%
+      pull(!!sym(param_name))
+    
+    draws_2929 <- posterior_all %>%
+      filter(genotype == "CCMP2929", temperature == temp) %>%
+      pull(!!sym(param_name))
+    
+    diff <- draws_1587 - draws_2929
+    
+    tibble(
+      Temperature = temp,
+      Parameter = param_name,
+      Median_Diff = median(diff),
+      CI_Lower = quantile(diff, 0.025),
+      CI_Upper = quantile(diff, 0.975),
+      P_1587_gt_2929 = mean(diff > 0)
+    )
+  })
+}
+df_mumax   <- summarise_genotype_difference("mumax")
+df_CO2opt  <- summarise_genotype_difference("CO2opt")
+df_alpha   <- summarise_genotype_difference("alpha")
+effect_diffs <- bind_rows(df_mumax, df_CO2opt, df_alpha)
+print(effect_diffs)
+
