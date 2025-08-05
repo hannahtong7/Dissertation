@@ -1,45 +1,28 @@
-#Set Working Directory
+# Set Working Directory
 setwd("~/Documents/temp/Dissertation/Data")
 
-#Load Required Libraries
+# Load Required Libraries
 library(ggplot2)
 library(dplyr)
 library(readr)
 library(patchwork)
 
-#Colorblind-Friendly Color Palette for Temperatures
+# Colorblind-Friendly Color Palette for Temperatures
 temp_colors <- c(
   "26" = "#4477AA",  # Blue
   "30" = "#66CCAA",  # Teal-green
   "35" = "#CC6677"   # Muted red/orange
 )
 
-###1. Load and Process Raw Chlorophyll Data
-df_raw <- read_csv("Chlorophyll a data.csv")
+# 1. Load data (already contains calculated chlorophyll-a per cell in pg)
+df <- read_csv("chla.csv")
 
-#chl_a_ug_per_ml is already calculated in the spreadsheet using:
-#13.2654 * (A665 - A750) - 2.6839 * (A632 - A750)
-
-#Step 1: Convert cell concentration from µL to mL (provides Chla per cell)
-df_raw <- df_raw %>%
-  mutate(
-    cell_conc_per_mL = cell_conc_per_uL * 1000, #Convert cell concentration to per mL
-    cells_filtered = cell_conc_per_mL * chla_extraction_vol_ml, #Calculate total cells filtered from known volumes filtered
-    chl_a_total_ug = chla_ug_per_ml * 5,  #Assuming 5 mL methanol - total Chla extracted
-    chl_a_per_cell_pg = (chl_a_total_ug / cells_filtered) * 1e6 #Chlorophyll-a per cell in picograms
-  )
-
-#Step 2: Save output
-write_csv(df_raw, "Chlorophyll_a_per_cell_output.csv")
-
-###2. Load Processed Data for Plotting
-df <- read_csv("Chlorophyll_a_per_cell_output.csv")
-
-#Ensure temp is treated as a factor
+# Ensure temp is a factor
 df$temp <- as.factor(df$temp)
 
-###3. Raw Line Plot (Observed Treatments)
-p_raw <- ggplot(df, aes(x = pco2_calculated, y = chl_a_per_cell_pg,
+# 2. Raw Line Plot (Observed Treatments)
+p_raw <- ggplot(df, aes(x = pco2_calculated, 
+                        y = Chl_a_per_cell_in_picograms,
                         color = temp, group = temp)) +
   geom_line(size = 1) +
   geom_point(size = 2) +
@@ -47,20 +30,18 @@ p_raw <- ggplot(df, aes(x = pco2_calculated, y = chl_a_per_cell_pg,
   scale_color_manual(name = "Temperature (°C)", values = temp_colors) +
   labs(
     title = "Raw Chlorophyll-a per Cell (lines connect treatments)",
-    x = NULL,
+    x = expression(paste("pCO"[2], " (µatm, calculated)")),
     y = "Chlorophyll-a per cell (pg)"
   ) +
   theme_minimal(base_size = 14) +
   theme(
-    plot.title      = element_text(face = "bold", size = 14, hjust = 0.5),
-    axis.title.x    = element_blank(),
-    strip.text      = element_text(size = 13, face = "bold"),
-    legend.title    = element_text(size = 12),
-    legend.text     = element_text(size = 11)
+    plot.title   = element_text(face = "bold", hjust = 0.5),
+    strip.text   = element_text(face = "bold")
   )
 
-###4. LOESS Smoothed Plot (No Replication, Visual Trend Only)
-p_smooth <- ggplot(df, aes(x = pco2_calculated, y = chl_a_per_cell_pg,
+# 3. LOESS Smoothed Plot (Visual trend only)
+p_smooth <- ggplot(df, aes(x = pco2_calculated, 
+                           y = Chl_a_per_cell_in_picograms,
                            color = temp)) +
   geom_point(size = 2, alpha = 0.8) +
   geom_smooth(method = "loess", span = 1.0, se = FALSE, linewidth = 1) +
@@ -73,34 +54,72 @@ p_smooth <- ggplot(df, aes(x = pco2_calculated, y = chl_a_per_cell_pg,
   ) +
   theme_minimal(base_size = 14) +
   theme(
-    plot.title   = element_text(face = "bold", size = 14, hjust = 0.5),
-    strip.text   = element_text(size = 13, face = "bold"),
-    legend.title = element_text(size = 12),
-    legend.text  = element_text(size = 11)
+    plot.title   = element_text(face = "bold", hjust = 0.5),
+    strip.text   = element_text(face = "bold")
   )
 
-###5. Combine Raw and Smoothed Plots Vertically
+# 4. Combine Plots Vertically
 combined_plot <- p_raw / p_smooth + plot_layout(heights = c(1, 1.05))
 print(combined_plot)
 
 
-#########Alternative plots#########
-df %>%
+
+
+# --- Add this after you load df and set factors ---
+
+library(tidyr)
+
+# Heuristic params per genotype × temp panel
+# Model form: y = C + A * exp( - (x - x0) / k )
+# where x0 is the panel's xmin, k ~ one-third of the x-range
+rng <- df %>%
   group_by(genotype, temp) %>%
-  summarise(mean_chla = mean(chl_a_per_cell_pg, na.rm = TRUE)) %>%
-  ggplot(aes(x = temp, y = mean_chla, fill = temp)) +
-  geom_col() +
-  facet_wrap(~ genotype) +
-  scale_fill_manual(values = temp_colors) +
-  labs(
-    title = "Mean Chlorophyll-a per Cell by Temperature",
-    x = "Temperature (°C)",
-    y = "Mean Chlorophyll-a per cell (pg)"
+  summarise(
+    xmin = min(pco2_calculated, na.rm = TRUE),
+    xmax = max(pco2_calculated, na.rm = TRUE),
+    ymin = min(Chl_a_per_cell_in_picograms, na.rm = TRUE),
+    ymax = max(Chl_a_per_cell_in_picograms, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    A  = pmax(ymax - ymin, 0),                 # amplitude
+    C  = ymin,                                 # lower asymptote
+    x0 = xmin,                                 # start point
+    k  = pmax((xmax - xmin) / 3, .Machine$double.eps)  # decay scale
+  )
+
+# Build a curve grid per panel
+curve_df <- rng %>%
+  group_by(genotype, temp) %>%
+  do({
+    xs <- seq(.$xmin, .$xmax, length.out = 200)
+    data.frame(
+      genotype = .$genotype,
+      temp     = .$temp,
+      pco2_calculated = xs,
+      y_pred   = .$C + .$A * exp( - (xs - .$x0) / .$k )
+    )
+  }) %>%
+  ungroup()
+
+# Overlay the unfitted exponential-decay curve on your existing plots
+p_raw_exp <- p_raw +
+  geom_line(
+    data = curve_df,
+    aes(x = pco2_calculated, y = y_pred, color = temp, group = temp),
+    linewidth = 1, linetype = "22"  # dashed
   ) +
-  theme_minimal(base_size = 14)
+  labs(subtitle = "Dashed lines: unfitted exponential-decay reference")
 
+p_smooth_exp <- p_smooth +
+  geom_line(
+    data = curve_df,
+    aes(x = pco2_calculated, y = y_pred, color = temp, group = temp),
+    linewidth = 1, linetype = "22"
+  ) +
+  labs(subtitle = "Dashed lines: unfitted exponential-decay reference")
 
-
-
+combined_plot <- p_raw_exp / p_smooth_exp + plot_layout(heights = c(1, 1.05))
+print(combined_plot)
 
 
